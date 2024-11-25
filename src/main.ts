@@ -1,59 +1,70 @@
-import { types as t, template } from '@babel/core';
+import { NodePath, types as t, template } from '@babel/core';
 import { declare } from '@babel/helper-plugin-utils';
 
 export default declare<Record<string, never>>(() => {
-  const helperName = 'taggedTemplateLiteral';
+  function addHelperIfNeeded(path: NodePath<t.Node>): t.Expression {
+    const scope = path.scope.getProgramParent();
+    const helperId = `_taggedTemplateLiteral`;
 
-  return {
-    name: 'transform-template-literals',
+    if (scope.hasBinding(helperId)) {
+      return t.identifier(helperId);
+    }
 
-    visitor: {
-      TaggedTemplateExpression(path) {
-        const addHelper = (name: string): t.Expression => {
-          return (this.addHelper as any)(name);
-        };
+    const helper = template.ast`
+      function ${helperId}(e, t) {
+        return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
+      }
+    `;
 
-        const { node } = path;
-        const { quasi } = node;
+    (scope.path as NodePath<t.Program>).unshiftContainer('body', helper);
 
-        if (quasi.expressions.length === 0) {
-          return;
-        }
+    return t.identifier(helperId);
+  }
 
-        const strings = [];
-        const raws = [];
+  function visitTaggedTemplateExpressions(
+    path: NodePath<t.TaggedTemplateExpression>,
+  ) {
+    const { node } = path;
+    const { quasi } = node;
 
-        // Flag variable to check if contents of strings and raw are equal
-        let isStringsRawEqual = true;
+    if (quasi.expressions.length === 0) {
+      return;
+    }
 
-        for (const elem of quasi.quasis) {
-          const { raw, cooked } = elem.value;
-          const value =
-            cooked == null ?
-              path.scope.buildUndefinedNode()
-            : t.stringLiteral(cooked);
+    const strings = [];
+    const raws = [];
 
-          strings.push(value);
-          raws.push(t.stringLiteral(raw));
+    // Flag variable to check if contents of strings and raw are equal
+    let isStringsRawEqual = true;
 
-          if (raw !== cooked) {
-            // false even if one of raw and cooked are not equal
-            isStringsRawEqual = false;
-          }
-        }
+    for (const elem of quasi.quasis) {
+      const { raw, cooked } = elem.value;
+      const value =
+        cooked == null ?
+          path.scope.buildUndefinedNode()
+        : t.stringLiteral(cooked);
 
-        const scope = path.scope.getProgramParent();
-        const templateObject = scope.generateUidIdentifier('templateObject');
+      strings.push(value);
+      raws.push(t.stringLiteral(raw));
 
-        const helperId = addHelper(helperName);
-        const callExpressionInput = [t.arrayExpression(strings)];
+      if (raw !== cooked) {
+        // false even if one of raw and cooked are not equal
+        isStringsRawEqual = false;
+      }
+    }
 
-        // only add raw arrayExpression if there is any difference between raws and strings
-        if (!isStringsRawEqual) {
-          callExpressionInput.push(t.arrayExpression(raws));
-        }
+    const scope = path.scope.getProgramParent();
+    const templateObject = scope.generateUidIdentifier('templateObject');
 
-        const lazyLoad = template.ast`
+    const helperId = addHelperIfNeeded(path);
+    const callExpressionInput = [t.arrayExpression(strings)];
+
+    // only add raw arrayExpression if there is any difference between raws and strings
+    if (!isStringsRawEqual) {
+      callExpressionInput.push(t.arrayExpression(raws));
+    }
+
+    const lazyLoad = template.ast`
           function ${templateObject}() {
             const data = ${t.callExpression(helperId, callExpressionInput)};
             ${templateObject} = () => data;
@@ -61,14 +72,82 @@ export default declare<Record<string, never>>(() => {
           }
         `;
 
-        scope.path.unshiftContainer('body' as never, lazyLoad as any);
-        path.replaceWith(
-          t.callExpression(node.tag, [
-            t.callExpression(t.cloneNode(templateObject), []),
-            ...(quasi.expressions as t.Expression[]),
-          ]),
-        );
+    (scope.path as NodePath<t.Program>).unshiftContainer('body', lazyLoad);
+
+    path.replaceWith(
+      t.callExpression(node.tag, [
+        t.callExpression(t.cloneNode(templateObject), []),
+        ...(quasi.expressions as t.Expression[]),
+      ]),
+    );
+  }
+
+  function visitTaggedTemplateExpressionsAndSkip(path: NodePath<t.Node>) {
+    path.traverse({
+      TaggedTemplateExpression: visitTaggedTemplateExpressions,
+    });
+
+    path.skip();
+  }
+
+  return {
+    name: 'transform-template-literals',
+
+    visitor: {
+      FunctionDeclaration(path) {
+        const { node } = path;
+
+        if (node.id) {
+          // function Component() {} or function useHook() {}
+          if (
+            startsWithCapitalLetter.test(node.id.name) ||
+            hookPrefix.test(node.id.name)
+          ) {
+            visitTaggedTemplateExpressionsAndSkip(path);
+            return;
+          }
+        }
+      },
+
+      ArrowFunctionExpression(path) {
+        const parentPath = path.parentPath;
+
+        if (t.isVariableDeclarator(parentPath.node)) {
+          const id = parentPath.node.id;
+          if (t.isIdentifier(id)) {
+            // const Component = () => {} or const useHook = () => {}
+            if (
+              startsWithCapitalLetter.test(id.name) ||
+              hookPrefix.test(id.name)
+            ) {
+              visitTaggedTemplateExpressionsAndSkip(path);
+              return;
+            }
+          }
+        } else if (t.isCallExpression(parentPath.node)) {
+          // forwardRef(() => {})
+          if (
+            t.isIdentifier(parentPath.node.callee) &&
+            parentPath.node.callee.name === 'forwardRef'
+          ) {
+            visitTaggedTemplateExpressionsAndSkip(path);
+            return;
+          }
+
+          // React.forwardRef(() => {})
+          else if (
+            t.isMemberExpression(parentPath.node.callee) &&
+            t.isIdentifier(parentPath.node.callee.property) &&
+            parentPath.node.callee.property.name === 'forwardRef'
+          ) {
+            visitTaggedTemplateExpressionsAndSkip(path);
+            return;
+          }
+        }
       },
     },
   };
 });
+
+const startsWithCapitalLetter = /^[A-Z]/;
+const hookPrefix = /^use[A-Z]/;
