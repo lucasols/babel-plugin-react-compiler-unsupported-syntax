@@ -5,7 +5,7 @@ export default defineConfig({
   clean: true,
   dts: true,
   sourcemap: true,
-  format: ['esm'],
+  format: ['esm', 'cjs'],
   esbuildOptions(options) {
     options.mangleProps = /[^_]_$/;
   },
