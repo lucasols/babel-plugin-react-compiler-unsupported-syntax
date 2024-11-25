@@ -75,7 +75,13 @@ test('transform tagged template literals', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     const Component = () => {
       const a = tag(_templateObject(), name);
       const b = tag(_templateObject2(), foo(name));
@@ -178,7 +184,13 @@ test('tag with unicode escape', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     function Component() {
       var foo = bar(_templateObject(), 1);
       return foo;
@@ -207,7 +219,13 @@ test('used inside a named function react component', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     function Component() {
       const a = tag(_templateObject(), name);
     }"
@@ -229,7 +247,13 @@ test('used inside a arrow function react component', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     const Component = () => {
       const a = tag(_templateObject(), name);
     };"
@@ -260,7 +284,13 @@ test('used inside a forwardRef react component', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     const Component = forwardRef((props, ref) => {
       const a = tag(_templateObject(), name);
     });
@@ -294,7 +324,13 @@ test('used inside a named function react hook', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     function useHook() {
       const a = tag(_templateObject(), name);
       function b() {
@@ -319,7 +355,13 @@ test('used inside a arrow function react hook', () => {
       _templateObject = () => data;
       return data;
     }
-    function _taggedTemplateLiteral(e, t) { return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } })); }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
     const useHook = () => {
       const a = tag(_templateObject(), name);
     };"
