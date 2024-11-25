@@ -92,58 +92,61 @@ export default declare<Record<string, never>>(() => {
 
   return {
     name: 'transform-template-literals',
-
     visitor: {
-      FunctionDeclaration(path) {
-        const { node } = path;
+      Program(programPath) {
+        programPath.traverse({
+          FunctionDeclaration(path) {
+            const { node } = path;
 
-        if (node.id) {
-          // function Component() {} or function useHook() {}
-          if (
-            startsWithCapitalLetter.test(node.id.name) ||
-            hookPrefix.test(node.id.name)
-          ) {
-            visitTaggedTemplateExpressionsAndSkip(path);
-            return;
-          }
-        }
-      },
-
-      ArrowFunctionExpression(path) {
-        const parentPath = path.parentPath;
-
-        if (t.isVariableDeclarator(parentPath.node)) {
-          const id = parentPath.node.id;
-          if (t.isIdentifier(id)) {
-            // const Component = () => {} or const useHook = () => {}
-            if (
-              startsWithCapitalLetter.test(id.name) ||
-              hookPrefix.test(id.name)
-            ) {
-              visitTaggedTemplateExpressionsAndSkip(path);
-              return;
+            if (node.id) {
+              // function Component() {} or function useHook() {}
+              if (
+                startsWithCapitalLetter.test(node.id.name) ||
+                hookPrefix.test(node.id.name)
+              ) {
+                visitTaggedTemplateExpressionsAndSkip(path);
+                return;
+              }
             }
-          }
-        } else if (t.isCallExpression(parentPath.node)) {
-          // forwardRef(() => {})
-          if (
-            t.isIdentifier(parentPath.node.callee) &&
-            parentPath.node.callee.name === 'forwardRef'
-          ) {
-            visitTaggedTemplateExpressionsAndSkip(path);
-            return;
-          }
+          },
 
-          // React.forwardRef(() => {})
-          else if (
-            t.isMemberExpression(parentPath.node.callee) &&
-            t.isIdentifier(parentPath.node.callee.property) &&
-            parentPath.node.callee.property.name === 'forwardRef'
-          ) {
-            visitTaggedTemplateExpressionsAndSkip(path);
-            return;
-          }
-        }
+          ArrowFunctionExpression(path) {
+            const parentPath = path.parentPath;
+
+            if (t.isVariableDeclarator(parentPath.node)) {
+              const id = parentPath.node.id;
+              if (t.isIdentifier(id)) {
+                // const Component = () => {} or const useHook = () => {}
+                if (
+                  startsWithCapitalLetter.test(id.name) ||
+                  hookPrefix.test(id.name)
+                ) {
+                  visitTaggedTemplateExpressionsAndSkip(path);
+                  return;
+                }
+              }
+            } else if (t.isCallExpression(parentPath.node)) {
+              // forwardRef(() => {})
+              if (
+                t.isIdentifier(parentPath.node.callee) &&
+                parentPath.node.callee.name === 'forwardRef'
+              ) {
+                visitTaggedTemplateExpressionsAndSkip(path);
+                return;
+              }
+
+              // React.forwardRef(() => {})
+              else if (
+                t.isMemberExpression(parentPath.node.callee) &&
+                t.isIdentifier(parentPath.node.callee.property) &&
+                parentPath.node.callee.property.name === 'forwardRef'
+              ) {
+                visitTaggedTemplateExpressionsAndSkip(path);
+                return;
+              }
+            }
+          },
+        });
       },
     },
   };
