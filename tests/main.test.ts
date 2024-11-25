@@ -109,7 +109,7 @@ test('tag evaluated code is correct', () => {
   );
 
   expect(
-    vm.runInNewContext(`${result?.code};useHook()`, {
+    vm.runInNewContext(`${result?.code};useHook();useHook()`, {
       tag: String.raw,
       foo(name: string) {
         return `foo ${name}`;
