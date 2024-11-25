@@ -1,0 +1,64 @@
+{
+  "name": "@ls-stack/babel-plugin-react-compiler-unsupported-syntax",
+  "description": "A plugin to add support for unsupported syntax on react compiler",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest --ui",
+    "test:run": "vitest run",
+    "lint": "pnpm tsc && pnpm eslint",
+    "tsc": "tsc -p tsconfig.prod.json",
+    "eslint": "CI=true eslint src/ --color --max-warnings=0",
+    "build": "pnpm test:run && pnpm lint && pnpm build:no-test",
+    "build:no-test": "tsup",
+    "build-test": "tsup --config tsup.test.config.ts",
+    "pre-publish": "./scripts/check-if-is-sync.sh && pnpm build"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": "github:lucasols/light-fsm",
+  "author": "Lucas Santos",
+  "type": "module",
+  "main": "./dist/main.cjs",
+  "module": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "require": "./dist/main.cjs"
+    }
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=21.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/helper-plugin-utils": "^7.25.9",
+    "@ls-stack/extended-lint": "^0.15.0",
+    "@ls-stack/utils": "^2.0.1",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__helper-plugin-utils": "^7.10.3",
+    "@types/eslint": "^9.6.1",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^22.9.3",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "@vitest/ui": "^2.1.5",
+    "eslint": "^9.15.0",
+    "eslint-plugin-unicorn": "^56.0.1",
+    "eslint-plugin-vitest": "^0.5.4",
+    "prettier": "3.3.3",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "tsm": "^2.3.0",
+    "tsup": "^8.3.5",
+    "typescript": "5.7.2",
+    "typescript-eslint": "^8.15.0",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.0.0-0"
+  }
+}
