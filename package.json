@@ -1,7 +1,7 @@
 {
   "name": "@ls-stack/babel-plugin-react-compiler-unsupported-syntax",
   "description": "A plugin to add support for unsupported syntax on react compiler",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "license": "MIT",
   "scripts": {
     "test": "vitest --ui",
