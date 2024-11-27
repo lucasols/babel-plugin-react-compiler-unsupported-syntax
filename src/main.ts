@@ -2,67 +2,53 @@ import { NodePath, types as t, template } from '@babel/core';
 import { declare } from '@babel/helper-plugin-utils';
 
 export default declare<Record<string, never>>(() => {
-  function addHelperIfNeeded(path: NodePath<t.Node>): t.Expression {
-    const scope = path.scope.getProgramParent();
-    const helperId = `_taggedTemplateLiteral`;
-
-    if (scope.hasBinding(helperId)) {
-      return t.identifier(helperId);
-    }
-
-    const helper = template.ast`
-      function ${helperId}(e, t) {
-        return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
-      }
-    `;
-
-    (scope.path as NodePath<t.Program>).unshiftContainer('body', helper);
-
-    return t.identifier(helperId);
-  }
-
-  function visitTaggedTemplateExpressions(
+  function shouldTransformTaggedTemplate(
     path: NodePath<t.TaggedTemplateExpression>,
-  ) {
+    componentFnNode?: t.Node,
+  ): boolean {
     const { node } = path;
     const { quasi } = node;
 
-    if (quasi.expressions.length === 0) {
+    const hasInterpolations = quasi.expressions.length > 0;
+
+    if (hasInterpolations) return true;
+
+    const isDefaultValue =
+      path.parentPath.isAssignmentPattern() &&
+      path.parentPath.parentPath.isObjectProperty() &&
+      path.parentPath.parentPath.parentPath.isObjectPattern() &&
+      path.parentPath.parentPath.parentPath.parentPath.node === componentFnNode;
+
+    if (isDefaultValue) return true;
+
+    return false;
+  }
+
+  function transformTaggedTemplateInterpolations(
+    path: NodePath<t.TaggedTemplateExpression>,
+    componentFnNode?: t.Node,
+  ): void {
+    const { node } = path;
+    const { quasi } = node;
+
+    if (!shouldTransformTaggedTemplate(path, componentFnNode)) {
       return;
     }
 
-    const strings = [];
-    const raws = [];
-
-    // Flag variable to check if contents of strings and raw are equal
-    let isStringsRawEqual = true;
-
-    for (const elem of quasi.quasis) {
-      const { raw, cooked } = elem.value;
-      const value =
-        cooked == null ?
-          path.scope.buildUndefinedNode()
-        : t.stringLiteral(cooked);
-
-      strings.push(value);
-      raws.push(t.stringLiteral(raw));
-
-      if (raw !== cooked) {
-        // false even if one of raw and cooked are not equal
-        isStringsRawEqual = false;
-      }
-    }
+    const callExpressionInput = getCallExpressionInputs(quasi, path);
 
     const scope = path.scope.getProgramParent();
     const templateObject = scope.generateUidIdentifier('templateObject');
 
-    const helperId = addHelperIfNeeded(path);
-    const callExpressionInput = [t.arrayExpression(strings)];
-
-    // only add raw arrayExpression if there is any difference between raws and strings
-    if (!isStringsRawEqual) {
-      callExpressionInput.push(t.arrayExpression(raws));
-    }
+    const helperId = addHelperIfNeeded(
+      path,
+      '_taggedTemplateLiteral',
+      template.ast`
+      function _taggedTemplateLiteral(e, t) {
+        return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
+      }
+    `,
+    );
 
     const lazyLoad = template.ast`
           function ${templateObject}() {
@@ -80,11 +66,82 @@ export default declare<Record<string, never>>(() => {
         ...(quasi.expressions as t.Expression[]),
       ]),
     );
+
+    return;
   }
 
-  function visitTaggedTemplateExpressionsAndSkip(path: NodePath<t.Node>) {
+  function transformTaggedTemplateDefaultProps(
+    path: NodePath<t.TaggedTemplateExpression>,
+    componentFnNode: t.Node,
+  ): boolean {
+    if (
+      !path.parentPath.isAssignmentPattern() ||
+      !path.parentPath.parentPath.isObjectProperty() ||
+      path.parentPath.parentPath.parentPath !== componentFnNode
+    ) {
+      return false;
+    }
+
+    const { node } = path;
+    const { quasi } = path.node;
+
+    if (quasi.expressions.length !== 0) return false;
+
+    const callExpressionInput = getCallExpressionInputs(quasi, path);
+
+    const scope = path.scope.getProgramParent();
+    const templateObject = scope.generateUidIdentifier(
+      'defaultPropTemplateObject',
+    );
+
+    const helperId = addHelperIfNeeded(
+      path,
+      '_defaultTaggedTemplate',
+      template.ast`
+      function _defaultTaggedTemplate(e, t) {
+        return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
+      }
+    `,
+    );
+
+    const lazyLoad = template.ast`
+          function ${templateObject}() {
+            const data = ${t.callExpression(helperId, callExpressionInput)};
+            ${templateObject} = () => data;
+            return data;
+          }
+        `;
+
+    (scope.path as NodePath<t.Program>).unshiftContainer('body', lazyLoad);
+
+    path.replaceWith(
+      t.callExpression(node.tag, [
+        t.callExpression(t.cloneNode(templateObject), []),
+        ...(quasi.expressions as t.Expression[]),
+      ]),
+    );
+
+    return true;
+  }
+
+  function traverseComponentFn(
+    path: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+    isForwardRef = false,
+  ) {
     path.traverse({
-      TaggedTemplateExpression: visitTaggedTemplateExpressions,
+      TaggedTemplateExpression: (tagPath) => {
+        transformTaggedTemplateInterpolations(tagPath, path.node);
+      },
+    });
+
+    path.skip();
+  }
+
+  function traverseHookFn(path: NodePath<t.Node>) {
+    path.traverse({
+      TaggedTemplateExpression: (tagPath) => {
+        transformTaggedTemplateInterpolations(tagPath);
+      },
     });
 
     path.skip();
@@ -99,12 +156,15 @@ export default declare<Record<string, never>>(() => {
             const { node } = path;
 
             if (node.id) {
-              // function Component() {} or function useHook() {}
-              if (
-                startsWithCapitalLetter.test(node.id.name) ||
-                hookPrefix.test(node.id.name)
-              ) {
-                visitTaggedTemplateExpressionsAndSkip(path);
+              // function Component() {}
+              if (startsWithCapitalLetter.test(node.id.name)) {
+                traverseComponentFn(path);
+                return;
+              }
+
+              // function useHook() {}
+              if (hookPrefix.test(node.id.name)) {
+                traverseHookFn(path);
                 return;
               }
             }
@@ -116,12 +176,15 @@ export default declare<Record<string, never>>(() => {
             if (t.isVariableDeclarator(parentPath.node)) {
               const id = parentPath.node.id;
               if (t.isIdentifier(id)) {
-                // const Component = () => {} or const useHook = () => {}
-                if (
-                  startsWithCapitalLetter.test(id.name) ||
-                  hookPrefix.test(id.name)
-                ) {
-                  visitTaggedTemplateExpressionsAndSkip(path);
+                // const Component = () => {}
+                if (startsWithCapitalLetter.test(id.name)) {
+                  traverseComponentFn(path);
+                  return;
+                }
+
+                // const useHook = () => {}
+                if (hookPrefix.test(id.name)) {
+                  traverseHookFn(path);
                   return;
                 }
               }
@@ -131,7 +194,7 @@ export default declare<Record<string, never>>(() => {
                 t.isIdentifier(parentPath.node.callee) &&
                 parentPath.node.callee.name === 'forwardRef'
               ) {
-                visitTaggedTemplateExpressionsAndSkip(path);
+                traverseComponentFn(path, true);
                 return;
               }
 
@@ -141,7 +204,7 @@ export default declare<Record<string, never>>(() => {
                 t.isIdentifier(parentPath.node.callee.property) &&
                 parentPath.node.callee.property.name === 'forwardRef'
               ) {
-                visitTaggedTemplateExpressionsAndSkip(path);
+                traverseComponentFn(path, true);
                 return;
               }
             }
@@ -154,3 +217,55 @@ export default declare<Record<string, never>>(() => {
 
 const startsWithCapitalLetter = /^[A-Z]/;
 const hookPrefix = /^use[A-Z]/;
+
+function getCallExpressionInputs(
+  quasi: t.TemplateLiteral,
+  path: NodePath<t.TaggedTemplateExpression>,
+) {
+  const strings = [];
+  const raws = [];
+
+  // Flag variable to check if contents of strings and raw are equal
+  let isStringsRawEqual = true;
+
+  for (const elem of quasi.quasis) {
+    const { raw, cooked } = elem.value;
+    const value =
+      cooked == null ?
+        path.scope.buildUndefinedNode()
+      : t.stringLiteral(cooked);
+
+    strings.push(value);
+    raws.push(t.stringLiteral(raw));
+
+    if (raw !== cooked) {
+      // false even if one of raw and cooked are not equal
+      isStringsRawEqual = false;
+    }
+  }
+
+  const callExpressionInput = [t.arrayExpression(strings)];
+
+  // only add raw arrayExpression if there is any difference between raws and strings
+  if (!isStringsRawEqual) {
+    callExpressionInput.push(t.arrayExpression(raws));
+  }
+
+  return callExpressionInput;
+}
+
+function addHelperIfNeeded(
+  path: NodePath<t.Node>,
+  helperId: string,
+  helper: t.Statement | t.Statement[],
+): t.Identifier {
+  const scope = path.scope.getProgramParent();
+
+  if (scope.hasBinding(helperId, { noGlobals: true })) {
+    return t.identifier(helperId);
+  }
+
+  (scope.path as NodePath<t.Program>).unshiftContainer('body', helper);
+
+  return t.identifier(helperId);
+}

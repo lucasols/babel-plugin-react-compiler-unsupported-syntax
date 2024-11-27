@@ -10,8 +10,7 @@ A plugin to add support for unsupported syntax on react compiler
 
 ## Workarounds for unsupported syntax supported by this plugin:
 
-- Support for tagged template with interpolations
+- Support for tagged template with interpolations. [Playground repro](https://playground.react.dev/#N4Igzg9grgTgxgUxALhAMygOzgFwJYSYAEAwhALYAOhCmOAFMEZgIbkJEC+AlEcADrEiMBDljEAPABM8ANwB8gosr4B9VQAMAFggA2uiEQAkwVu04bOSohID0MhYM4hOQA)
 
-## Files to check for updates
-
-https://github.com/facebook/react/blob/main/compiler/packages/babel-plugin-react-compiler/src/__tests__/fixtures/compiler/error.todo-kitchensink.expect.md?plain=1
+- Support for default props with tagged template literals
+  [Playground repro](https://playground.react.dev/#N4Igzg9grgTgxgUxALhAMygOzgFwJYSYAEAwhALYAOhCmOAFMEZgIbkJEC8RA+jwAYAZKHBZh+RAL4BKIsAA6xIjAQ5YxADwATPADcAfIqLG5rdpKNENAeh0HFkkJKA)

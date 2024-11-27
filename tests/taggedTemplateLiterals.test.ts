@@ -383,3 +383,45 @@ test('do nothing when not inside a react component or hook', () => {
     }"
   `);
 });
+
+test('cooked value not equal to raw value', () => {
+  const result = transformCode(
+    `
+      const name = 'lucas';
+      function Component() {
+        const a = tag\`hello\\\\t \\n \${name}\`;
+
+        return a;
+      }
+    `,
+  );
+
+  expect(result?.code).toMatchInlineSnapshot(`
+    "function _templateObject() {
+      const data = _taggedTemplateLiteral(["hello\\\\t \\n ", ""], ["hello\\\\\\\\t \\n ", ""]);
+      _templateObject = () => data;
+      return data;
+    }
+    function _taggedTemplateLiteral(e, t) {
+      return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, {
+        raw: {
+          value: Object.freeze(t)
+        }
+      }));
+    }
+    const name = 'lucas';
+    function Component() {
+      const a = tag(_templateObject(), name);
+      return a;
+    }"
+  `);
+
+  expect(
+    vm.runInNewContext(`${result?.code};Component()`, {
+      tag: String.raw,
+    }),
+  ).toMatchInlineSnapshot(`
+    "hello\\\\t 
+     lucas"
+  `);
+});
