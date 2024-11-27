@@ -70,63 +70,8 @@ export default declare<Record<string, never>>(() => {
     return;
   }
 
-  function transformTaggedTemplateDefaultProps(
-    path: NodePath<t.TaggedTemplateExpression>,
-    componentFnNode: t.Node,
-  ): boolean {
-    if (
-      !path.parentPath.isAssignmentPattern() ||
-      !path.parentPath.parentPath.isObjectProperty() ||
-      path.parentPath.parentPath.parentPath !== componentFnNode
-    ) {
-      return false;
-    }
-
-    const { node } = path;
-    const { quasi } = path.node;
-
-    if (quasi.expressions.length !== 0) return false;
-
-    const callExpressionInput = getCallExpressionInputs(quasi, path);
-
-    const scope = path.scope.getProgramParent();
-    const templateObject = scope.generateUidIdentifier(
-      'defaultPropTemplateObject',
-    );
-
-    const helperId = addHelperIfNeeded(
-      path,
-      '_defaultTaggedTemplate',
-      template.ast`
-      function _defaultTaggedTemplate(e, t) {
-        return t || (t = e.slice(0)), Object.freeze(Object.defineProperties(e, { raw: { value: Object.freeze(t) } }));
-      }
-    `,
-    );
-
-    const lazyLoad = template.ast`
-          function ${templateObject}() {
-            const data = ${t.callExpression(helperId, callExpressionInput)};
-            ${templateObject} = () => data;
-            return data;
-          }
-        `;
-
-    (scope.path as NodePath<t.Program>).unshiftContainer('body', lazyLoad);
-
-    path.replaceWith(
-      t.callExpression(node.tag, [
-        t.callExpression(t.cloneNode(templateObject), []),
-        ...(quasi.expressions as t.Expression[]),
-      ]),
-    );
-
-    return true;
-  }
-
   function traverseComponentFn(
     path: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
-    isForwardRef = false,
   ) {
     path.traverse({
       TaggedTemplateExpression: (tagPath) => {
@@ -194,7 +139,7 @@ export default declare<Record<string, never>>(() => {
                 t.isIdentifier(parentPath.node.callee) &&
                 parentPath.node.callee.name === 'forwardRef'
               ) {
-                traverseComponentFn(path, true);
+                traverseComponentFn(path);
                 return;
               }
 
@@ -204,7 +149,7 @@ export default declare<Record<string, never>>(() => {
                 t.isIdentifier(parentPath.node.callee.property) &&
                 parentPath.node.callee.property.name === 'forwardRef'
               ) {
-                traverseComponentFn(path, true);
+                traverseComponentFn(path);
                 return;
               }
             }
