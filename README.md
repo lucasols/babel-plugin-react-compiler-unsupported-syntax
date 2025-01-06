@@ -14,3 +14,6 @@ A plugin to add support for unsupported syntax on react compiler
 
 - Support for default props with tagged template literals
   [Playground repro](https://playground.react.dev/#N4Igzg9grgTgxgUxALhAMygOzgFwJYSYAEAwhALYAOhCmOAFMEZgIbkJEC8RA+jwAYAZKHBZh+RAL4BKIsAA6xIjAQ5YxADwATPADcAfIqLG5rdpKNENAeh0HFkkJKA)
+
+- Support for explicit resource management
+  [Playground repro](https://playground.react.dev/#N4Igzg9grgTgxgUxALhAAg5uEB2YAuaAwhALYAOuCOhAvGgBQCUatAfGsADo6Z9rY8hODAQBDfAEtcAZXwSErNFDAIAslHlTZWhMwDcPHv0wAzKDjjbeuIqIXNOxk5hWScAczSlNSsQBN-NTAPOQUAOgIxGHwDI14XDBFxfHUQhlIQpkMEkwBfeMTRfFheAB5-SQA3NmBkiWkcMNTwyTAAGQgA9y8AfjQymXJ3HAQYNAB6DmRnRLKAI018XDRbABtJOABrWmBbe1S8tjsUhDKJxfxlnDZZ-jzzypqc-JA8oA)

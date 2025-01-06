@@ -37,6 +37,9 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/helper-plugin-utils": "^7.25.9",
+    "@babel/plugin-proposal-explicit-resource-management": "^7.25.9",
+    "@babel/plugin-transform-runtime": "^7.25.9",
+    "@babel/runtime": "^7.26.0",
     "@ls-stack/extended-lint": "^0.15.0",
     "@ls-stack/utils": "^2.0.1",
     "@types/babel__core": "^7.20.5",
@@ -47,6 +50,7 @@
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "@vitest/ui": "^2.1.5",
+    "babel-plugin-react-compiler": "19.0.0-beta-55955c9-20241229",
     "eslint": "^9.15.0",
     "eslint-plugin-unicorn": "^56.0.1",
     "eslint-plugin-vitest": "^0.5.4",
